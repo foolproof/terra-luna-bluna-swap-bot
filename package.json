@@ -5,7 +5,8 @@
 	"devDependencies": {
 		"@types/node": "^15.3.0",
 		"prettier": "^2.3.0",
-		"ts-node": "^9.1.1"
+		"ts-node": "^9.1.1",
+		"typescript": "^4.2.4"
 	},
 	"dependencies": {
 		"@terra-money/terra.js": "^1.7.0",
