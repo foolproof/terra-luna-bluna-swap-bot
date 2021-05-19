@@ -1,0 +1,14 @@
+{
+	"scripts": {
+		"start": "ts-node index.ts"
+	},
+	"devDependencies": {
+		"@types/node": "^15.3.0",
+		"prettier": "^2.3.0",
+		"ts-node": "^9.1.1"
+	},
+	"dependencies": {
+		"@terra-money/terra.js": "^1.7.0",
+		"dotenv": "^9.0.2"
+	}
+}
