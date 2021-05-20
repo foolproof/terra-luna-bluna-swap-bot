@@ -24,8 +24,8 @@ type SimulationReturnTypeNormalized = {
 };
 
 class UIContext {
-	lunaAmount: number = 0;
-	blunaAmount: number = 0;
+	lunaAmount: Decimal = new Decimal(0);
+	blunaAmount: Decimal = new Decimal(0);
 	rate: SimulationReturnTypeNormalized;
 	ratePercentage: number = 0;
 	startDate: number = Date.now();
@@ -47,11 +47,11 @@ const context = new UIContext();
 
 const wallet = terra.wallet(key);
 
-async function getSimulationRate(amount: Decimal = new Decimal(100)) {
+async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER)) {
 	const rate = await terra.wasm.contractQuery<SimulationReturnType>(PAIR_TOKEN_ADDRESS, {
 		simulation: {
 			offer_asset: {
-				amount: amount.times(MICRO_MULTIPLIER).toFixed(),
+				amount: amount,
 				info: { native_token: { denom: 'uluna' } },
 			},
 		},
@@ -82,22 +82,14 @@ async function getReverseSimulationRate(amount: Decimal = new Decimal(100)) {
 }
 
 function computePercentage(rate: SimulationReturnTypeNormalized, amount: number) {
-	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER);
+	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER).times(100);
 	return bLunaPrice.minus(amount).dividedBy(amount).times(100).toNumber();
 }
 
-async function displayBalance() {
-	const native = await terra.bank.balance(wallet.key.accAddress);
-	const bLuna = await getBLunaBalance();
+async function getWalletBalance() {
+	const balance = await terra.bank.balance(wallet.key.accAddress);
 
-	const lunaAmount = native.get('uluna').amount.dividedBy(MICRO_MULTIPLIER).toFixed(3);
-	const bLunaAmount = bLuna.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3);
-
-	console.log(`New Balance: ${lunaAmount} Luna - ${bLunaAmount} bLuna`);
-}
-
-function getWalletBalance() {
-	return terra.bank.balance(wallet.key.accAddress);
+	return balance.get('uluna');
 }
 
 function increaseAllowanceMessageFactory(amount: Decimal) {
@@ -106,7 +98,7 @@ function increaseAllowanceMessageFactory(amount: Decimal) {
 		BLUNA_TOKEN_ADDRESS,
 		{
 			increase_allowance: {
-				amount: amount.toFixed(),
+				amount: amount,
 				spender: PAIR_TOKEN_ADDRESS,
 			},
 		},
@@ -117,7 +109,7 @@ function increaseAllowanceMessageFactory(amount: Decimal) {
 function swapBlunaToLunaMessageFactory(amount: Decimal) {
 	return new MsgExecuteContract(wallet.key.accAddress, BLUNA_TOKEN_ADDRESS, {
 		send: {
-			amount: amount.times(MICRO_MULTIPLIER).toFixed(),
+			amount: amount,
 			contract: PAIR_TOKEN_ADDRESS,
 			msg: 'eyJzd2FwIjp7fX0=',
 		},
@@ -132,11 +124,11 @@ function swapLunaToBlunaMessageFactory(amount: Decimal) {
 			swap: {
 				offer_asset: {
 					info: { native_token: { denom: 'uluna' } },
-					amount: amount.times(MICRO_MULTIPLIER).toFixed(),
+					amount: amount,
 				},
 			},
 		},
-		[new Coin('uluna', amount.times(MICRO_MULTIPLIER).toFixed())]
+		[new Coin('uluna', amount)]
 	);
 }
 
@@ -161,13 +153,13 @@ function logTransaction(message: string) {
 }
 
 async function init() {
-	context.transactions = new Array<string>();
+	context.transactions = [];
 
 	const blunaAmount = await getBLunaBalance();
-	context.blunaAmount = blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+	context.blunaAmount = blunaAmount.amount;
 
-	const balance = await getWalletBalance();
-	context.lunaAmount = balance.get('uluna').amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+	const lunaAmount = await getWalletBalance();
+	context.lunaAmount = lunaAmount.amount;
 
 	main();
 }
@@ -179,54 +171,55 @@ async function main() {
 
 		if (context.ratePercentage < MINIMUM_REVERSE_SWAP_RATE) {
 			const blunaAmount = await getBLunaBalance();
-			context.blunaAmount = blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+			context.blunaAmount = blunaAmount.amount;
 
-			if (context.blunaAmount > 2) {
-				const toConvert = blunaAmount.amount.minus(100).dividedBy(MICRO_MULTIPLIER);
+			if (context.blunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
+				logTransaction(`> Swapping bLuna -> Luna [${blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna]`);
 
-				logTransaction(`> Swapping bLuna -> Luna [${toConvert.toFixed(3)} bLuna]`);
-
-				const swapMessage = swapBlunaToLunaMessageFactory(toConvert);
+				const swapMessage = swapBlunaToLunaMessageFactory(blunaAmount.amount);
 				const txs = await createAndSignTx([swapMessage]);
 				await terra.tx.broadcast(txs);
-				await displayBalance();
-			} else {
-				//console.log('Not enough bLuna to swap');
+
+				context.blunaAmount = (await getBLunaBalance()).amount;
+				context.lunaAmount = (await getWalletBalance()).amount;
 			}
 		}
 
 		if (context.ratePercentage > MINIMUM_SWAP_RATE) {
 			const balance = await getWalletBalance();
-			const lunaAmount = balance.get('uluna').amount;
-			context.lunaAmount = lunaAmount.dividedBy(MICRO_MULTIPLIER).toNumber();
+			context.lunaAmount = balance.amount;
 
-			const simulationRate = await getSimulationRate(lunaAmount.dividedBy(MICRO_MULTIPLIER));
+			const simulationRate = await getSimulationRate(context.lunaAmount);
 			const allowance = simulationRate.returnAmount.plus(10);
-			const toConvert = lunaAmount.minus(200).dividedBy(MICRO_MULTIPLIER);
+			const toConvert = context.lunaAmount.minus(simulationRate.commissionAmount);
 
-			if (toConvert.toNumber() > 2) {
-				logTransaction(`> Swapping Luna -> bLuna [${toConvert.toFixed(3)} Luna]`);
+			if (context.lunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
+				logTransaction(`> Swapping Luna -> bLuna [${toConvert.dividedBy(MICRO_MULTIPLIER).toFixed(3)} Luna]`);
 
 				const increaseAllowance = increaseAllowanceMessageFactory(allowance);
 				const swapMessage = swapLunaToBlunaMessageFactory(toConvert);
 				const txs = await createAndSignTx([increaseAllowance, swapMessage]);
 				await terra.tx.broadcast(txs);
-				await displayBalance();
-			} else {
-				//console.log('Not enough Luna to swap');
+
+				context.blunaAmount = (await getBLunaBalance()).amount;
+				context.lunaAmount = (await getWalletBalance()).amount;
 			}
 		}
 	} catch (e) {
 		console.error(e.response.data);
 	}
 
-	setTimeout(main, 5000);
+	setTimeout(main, 15000);
 }
 
 function updateUI() {
 	console.clear();
 	console.log(`Uptime: ${formatDistanceToNowStrict(context.startDate)}`);
-	console.log(`Luna: ${context.lunaAmount.toFixed(3)} - bLuna: ${context.blunaAmount.toFixed(3)}`);
+	console.log(
+		`Luna: ${context.lunaAmount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} - bLuna: ${context.blunaAmount
+			.dividedBy(MICRO_MULTIPLIER)
+			.toFixed(3)}`
+	);
 	console.log('=======================================');
 	console.log(`Current Swap Percentage: ${context.ratePercentage.toFixed(3)}%`);
 	console.log('=======================================');
