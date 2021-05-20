@@ -3,7 +3,7 @@ import Decimal from 'decimal.js';
 import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract } from '@terra-money/terra.js';
 import { formatDistanceToNowStrict } from 'date-fns';
 
-const MICRO_MULTIPLIER = 1000000;
+const MICRO_MULTIPLIER = 1_000_000;
 const MAX_TRANSACTIONS_LOG = 5;
 
 const MINIMUM_REVERSE_SWAP_RATE = Number(process.env.MINIMUM_REVERSE_SWAP_RATE);
