@@ -10,6 +10,7 @@
 	},
 	"dependencies": {
 		"@terra-money/terra.js": "^1.7.0",
+		"date-fns": "^2.21.3",
 		"decimal.js": "^10.2.1",
 		"dotenv": "^9.0.2"
 	}

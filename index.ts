@@ -1,8 +1,10 @@
 require('dotenv').config();
 import Decimal from 'decimal.js';
 import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract } from '@terra-money/terra.js';
+import { formatDistanceToNowStrict } from 'date-fns';
 
 const MICRO_MULTIPLIER = 1000000;
+const MAX_TRANSACTIONS_LOG = 5;
 
 const MINIMUM_REVERSE_SWAP_RATE = Number(process.env.MINIMUM_REVERSE_SWAP_RATE);
 const MINIMUM_SWAP_RATE = Number(process.env.MINIMUM_SWAP_RATE);
@@ -21,6 +23,15 @@ type SimulationReturnTypeNormalized = {
 	commissionAmount: Decimal;
 };
 
+class UIContext {
+	lunaAmount: number = 0;
+	blunaAmount: number = 0;
+	rate: SimulationReturnTypeNormalized;
+	ratePercentage: number = 0;
+	startDate: number = Date.now();
+	transactions: Array<string>;
+}
+
 const key = new MnemonicKey({
 	mnemonic: process.env.KEY,
 });
@@ -31,6 +42,8 @@ const terra = new LCDClient({
 	gasPrices: { uluna: 0.15 },
 	gasAdjustment: 1.05,
 });
+
+const context = new UIContext();
 
 const wallet = terra.wallet(key);
 
@@ -139,41 +152,60 @@ function createAndSignTx(msgs: Msg[]) {
 	return wallet.createAndSignTx({ msgs });
 }
 
+function logTransaction(message: string) {
+	context.transactions.unshift(message);
+
+	if (context.transactions.length > MAX_TRANSACTIONS_LOG) {
+		context.transactions.splice(-1, 1);
+	}
+}
+
+async function init() {
+	context.transactions = new Array<string>();
+
+	const blunaAmount = await getBLunaBalance();
+	context.blunaAmount = blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+
+	const balance = await getWalletBalance();
+	context.lunaAmount = balance.get('uluna').amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+
+	main();
+}
+
 async function main() {
 	try {
-		const rate = await getSimulationRate();
-		const percentage = computePercentage(rate, 100);
+		context.rate = await getSimulationRate();
+		context.ratePercentage = computePercentage(context.rate, 100);
 
-		console.log('-----------------------------------');
-		console.info(`Current Swap Percentage: ${percentage.toFixed(3)}%`);
-
-		if (percentage < MINIMUM_REVERSE_SWAP_RATE) {
+		if (context.ratePercentage < MINIMUM_REVERSE_SWAP_RATE) {
 			const blunaAmount = await getBLunaBalance();
-			const convertedAmount = blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toNumber();
+			context.blunaAmount = blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toNumber();
 
-			if (convertedAmount > 2) {
+			if (context.blunaAmount > 2) {
 				const toConvert = blunaAmount.amount.minus(100).dividedBy(MICRO_MULTIPLIER);
-				console.info(`Swapping bLuna -> Luna [${toConvert.toFixed(3)} bLuna]`);
+
+				logTransaction(`> Swapping bLuna -> Luna [${toConvert.toFixed(3)} bLuna]`);
 
 				const swapMessage = swapBlunaToLunaMessageFactory(toConvert);
 				const txs = await createAndSignTx([swapMessage]);
 				await terra.tx.broadcast(txs);
 				await displayBalance();
 			} else {
-				console.log('Not enough bLuna to swap');
+				//console.log('Not enough bLuna to swap');
 			}
 		}
 
-		if (percentage > MINIMUM_SWAP_RATE) {
+		if (context.ratePercentage > MINIMUM_SWAP_RATE) {
 			const balance = await getWalletBalance();
 			const lunaAmount = balance.get('uluna').amount;
+			context.lunaAmount = lunaAmount.dividedBy(MICRO_MULTIPLIER).toNumber();
 
 			const simulationRate = await getSimulationRate(lunaAmount.dividedBy(MICRO_MULTIPLIER));
 			const allowance = simulationRate.returnAmount.plus(10);
 			const toConvert = lunaAmount.minus(200).dividedBy(MICRO_MULTIPLIER);
 
 			if (toConvert.toNumber() > 2) {
-				console.info(`Swapping Luna -> bLuna [${toConvert.toFixed(3)} Luna]`);
+				logTransaction(`> Swapping Luna -> bLuna [${toConvert.toFixed(3)} Luna]`);
 
 				const increaseAllowance = increaseAllowanceMessageFactory(allowance);
 				const swapMessage = swapLunaToBlunaMessageFactory(toConvert);
@@ -181,7 +213,7 @@ async function main() {
 				await terra.tx.broadcast(txs);
 				await displayBalance();
 			} else {
-				console.log('Not enough Luna to swap');
+				//console.log('Not enough Luna to swap');
 			}
 		}
 	} catch (e) {
@@ -191,4 +223,19 @@ async function main() {
 	setTimeout(main, 5000);
 }
 
-main();
+function updateUI() {
+	console.clear();
+	console.log(`Uptime: ${formatDistanceToNowStrict(context.startDate)}`);
+	console.log(`Luna: ${context.lunaAmount.toFixed(3)} - bLuna: ${context.blunaAmount.toFixed(3)}`);
+	console.log('=======================================');
+	console.log(`Current Swap Percentage: ${context.ratePercentage.toFixed(3)}%`);
+	console.log('=======================================');
+	console.log('Last transactions');
+	console.log('=======================================');
+	for (let i = 0; i < context.transactions.length; i++) {
+		console.log(context.transactions[i]);
+	}
+}
+
+setInterval(updateUI, 1000);
+init();
