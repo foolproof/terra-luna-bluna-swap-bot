@@ -47,7 +47,7 @@ const context = new UIContext();
 
 const wallet = terra.wallet(key);
 
-async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER)) {
+async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER * 100)) {
 	const rate = await terra.wasm.contractQuery<SimulationReturnType>(PAIR_TOKEN_ADDRESS, {
 		simulation: {
 			offer_asset: {
@@ -64,11 +64,11 @@ async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER)
 	};
 }
 
-async function getReverseSimulationRate(amount: Decimal = new Decimal(100)) {
+async function getReverseSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER * 100)) {
 	const rate = await terra.wasm.contractQuery<SimulationReturnType>(PAIR_TOKEN_ADDRESS, {
 		simulation: {
 			offer_asset: {
-				amount: amount.times(MICRO_MULTIPLIER).toFixed(),
+				amount: amount,
 				info: { token: { contract_addr: BLUNA_TOKEN_ADDRESS } },
 			},
 		},
@@ -82,7 +82,7 @@ async function getReverseSimulationRate(amount: Decimal = new Decimal(100)) {
 }
 
 function computePercentage(rate: SimulationReturnTypeNormalized, amount: number) {
-	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER).times(100);
+	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER);
 	return bLunaPrice.minus(amount).dividedBy(amount).times(100).toNumber();
 }
 
@@ -185,6 +185,7 @@ async function main() {
 			}
 		}
 
+        
 		if (context.ratePercentage > MINIMUM_SWAP_RATE) {
 			const balance = await getWalletBalance();
 			context.lunaAmount = balance.amount;
@@ -209,7 +210,7 @@ async function main() {
 		console.error(e.response.data);
 	}
 
-	setTimeout(main, 15000);
+	setTimeout(main, 2000);
 }
 
 function updateUI() {
