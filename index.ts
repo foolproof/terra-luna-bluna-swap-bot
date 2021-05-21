@@ -39,7 +39,7 @@ const key = new MnemonicKey({
 const terra = new LCDClient({
 	URL: process.env.LCD_URL,
 	chainID: process.env.CHAIN_ID,
-	gasPrices: { uluna: 0.15 },
+	gasPrices: { ukrw: 178.05 },
 	gasAdjustment: 1.05,
 });
 
@@ -174,7 +174,7 @@ async function main() {
 			context.blunaAmount = blunaAmount.amount;
 
 			if (context.blunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
-				logTransaction(`> Swapping bLuna -> Luna [${blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna]`);
+				logTransaction(`> Swapping bLuna -> Luna [${blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna @${context.ratePercentage.toFixed(3)}]`);
 
 				const swapMessage = swapBlunaToLunaMessageFactory(blunaAmount.amount);
 				const txs = await createAndSignTx([swapMessage]);
@@ -195,7 +195,7 @@ async function main() {
 			const toConvert = context.lunaAmount.minus(simulationRate.commissionAmount);
 
 			if (context.lunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
-				logTransaction(`> Swapping Luna -> bLuna [${toConvert.dividedBy(MICRO_MULTIPLIER).toFixed(3)} Luna]`);
+				logTransaction(`> Swapping Luna -> bLuna [${toConvert.dividedBy(MICRO_MULTIPLIER).toFixed(3)} Luna @${context.ratePercentage.toFixed(3)}]`);
 
 				const increaseAllowance = increaseAllowanceMessageFactory(allowance);
 				const swapMessage = swapLunaToBlunaMessageFactory(toConvert);
