@@ -28,6 +28,7 @@ class UIContext {
 	blunaAmount: Decimal = new Decimal(0);
 	rate: SimulationReturnTypeNormalized;
 	ratePercentage: number = 0;
+	trend: string;
 	startDate: number = Date.now();
 	uptimeDuration: Duration;
 	transactions: Array<string>;
@@ -51,7 +52,7 @@ const key = new MnemonicKey({
 const terra = new LCDClient({
 	URL: process.env.LCD_URL,
 	chainID: process.env.CHAIN_ID,
-	gasPrices: { uluna: 0.15 },
+	gasPrices: { ukrw: 178.05 },
 	gasAdjustment: 1.05,
 });
 
@@ -59,7 +60,7 @@ const context = new UIContext();
 
 const wallet = terra.wallet(key);
 
-async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER)) {
+async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER * 100)) {
 	const rate = await terra.wasm.contractQuery<SimulationReturnType>(PAIR_TOKEN_ADDRESS, {
 		simulation: {
 			offer_asset: {
@@ -76,11 +77,11 @@ async function getSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER)
 	};
 }
 
-async function getReverseSimulationRate(amount: Decimal = new Decimal(100)) {
+async function getReverseSimulationRate(amount: Decimal = new Decimal(MICRO_MULTIPLIER * 100)) {
 	const rate = await terra.wasm.contractQuery<SimulationReturnType>(PAIR_TOKEN_ADDRESS, {
 		simulation: {
 			offer_asset: {
-				amount: amount.times(MICRO_MULTIPLIER).toFixed(),
+				amount: amount,
 				info: { token: { contract_addr: BLUNA_TOKEN_ADDRESS } },
 			},
 		},
@@ -94,7 +95,7 @@ async function getReverseSimulationRate(amount: Decimal = new Decimal(100)) {
 }
 
 function computePercentage(rate: SimulationReturnTypeNormalized, amount: number) {
-	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER).times(100);
+	const bLunaPrice = rate.returnAmount.dividedBy(MICRO_MULTIPLIER);
 	return bLunaPrice.minus(amount).dividedBy(amount).times(100).toNumber();
 }
 
@@ -179,14 +180,20 @@ async function init() {
 async function main() {
 	try {
 		context.rate = await getSimulationRate();
-		context.ratePercentage = computePercentage(context.rate, 100);
+		const ratePercentage = computePercentage(context.rate, 100);
+		context.trend = ratePercentage > context.ratePercentage ? '↑' : ratePercentage < context.ratePercentage ? '↓' : '—';
+		context.ratePercentage = ratePercentage;
 
 		if (context.ratePercentage < MINIMUM_REVERSE_SWAP_RATE) {
 			const blunaAmount = await getBLunaBalance();
 			context.blunaAmount = blunaAmount.amount;
 
 			if (context.blunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
-				logTransaction(`> Swapping bLuna -> Luna [${blunaAmount.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna]`);
+				logTransaction(
+					`> Swapping bLuna -> Luna [${blunaAmount.amount
+						.dividedBy(MICRO_MULTIPLIER)
+						.toFixed(3)} bLuna @${context.ratePercentage.toFixed(3)}]`
+				);
 
 				const swapMessage = swapBlunaToLunaMessageFactory(blunaAmount.amount);
 				const txs = await createAndSignTx([swapMessage]);
@@ -208,7 +215,11 @@ async function main() {
 			const toConvert = context.lunaAmount.minus(simulationRate.commissionAmount);
 
 			if (context.lunaAmount.toNumber() > 2 * MICRO_MULTIPLIER) {
-				logTransaction(`> Swapping Luna -> bLuna [${toConvert.dividedBy(MICRO_MULTIPLIER).toFixed(3)} Luna]`);
+				logTransaction(
+					`> Swapping Luna -> bLuna [${toConvert
+						.dividedBy(MICRO_MULTIPLIER)
+						.toFixed(3)} Luna @${context.ratePercentage.toFixed(3)}]`
+				);
 
 				const increaseAllowance = increaseAllowanceMessageFactory(allowance);
 				const swapMessage = swapLunaToBlunaMessageFactory(toConvert);
@@ -239,7 +250,7 @@ function updateUI() {
 			.toFixed(3)}`
 	);
 	console.log('================================================');
-	console.log(`Current Swap Percentage: ${context.ratePercentage.toFixed(3)}%`);
+	console.log(`Current Swap Percentage: ${context.ratePercentage.toFixed(3)}% ${context.trend}`);
 	console.log('================================================');
 	console.log('Last transactions');
 	console.log('================================================');
