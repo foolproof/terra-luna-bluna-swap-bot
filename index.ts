@@ -1,7 +1,7 @@
 require('dotenv').config();
 import Decimal from 'decimal.js';
 import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract } from '@terra-money/terra.js';
-import { formatDistanceToNowStrict } from 'date-fns';
+import { intervalToDuration, formatDuration } from 'date-fns';
 
 const MICRO_MULTIPLIER = 1_000_000;
 const MAX_TRANSACTIONS_LOG = 5;
@@ -29,7 +29,19 @@ class UIContext {
 	rate: SimulationReturnTypeNormalized;
 	ratePercentage: number = 0;
 	startDate: number = Date.now();
+	uptimeDuration: Duration;
 	transactions: Array<string>;
+
+	constructor() {
+		this.updateUptime();
+	}
+
+	updateUptime() {
+		this.uptimeDuration = intervalToDuration({
+			start: this.startDate,
+			end: Date.now(),
+		});
+	}
 }
 
 const key = new MnemonicKey({
@@ -180,8 +192,10 @@ async function main() {
 				const txs = await createAndSignTx([swapMessage]);
 				await terra.tx.broadcast(txs);
 
-				context.blunaAmount = (await getBLunaBalance()).amount;
-				context.lunaAmount = (await getWalletBalance()).amount;
+				setTimeout(async function () {
+					context.blunaAmount = (await getBLunaBalance()).amount;
+					context.lunaAmount = (await getWalletBalance()).amount;
+				}, 10000);
 			}
 		}
 
@@ -201,30 +215,34 @@ async function main() {
 				const txs = await createAndSignTx([increaseAllowance, swapMessage]);
 				await terra.tx.broadcast(txs);
 
-				context.blunaAmount = (await getBLunaBalance()).amount;
-				context.lunaAmount = (await getWalletBalance()).amount;
+				setTimeout(async function () {
+					context.blunaAmount = (await getBLunaBalance()).amount;
+					context.lunaAmount = (await getWalletBalance()).amount;
+				}, 10000);
 			}
 		}
 	} catch (e) {
 		console.error(e.response.data);
 	}
 
-	setTimeout(main, 15000);
+	setTimeout(main, 5000);
 }
 
 function updateUI() {
+	context.updateUptime();
+
 	console.clear();
-	console.log(`Uptime: ${formatDistanceToNowStrict(context.startDate)}`);
+	console.log(`v1.3 - Uptime: ${formatDuration(context.uptimeDuration)}`);
 	console.log(
 		`Luna: ${context.lunaAmount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} - bLuna: ${context.blunaAmount
 			.dividedBy(MICRO_MULTIPLIER)
 			.toFixed(3)}`
 	);
-	console.log('=======================================');
+	console.log('================================================');
 	console.log(`Current Swap Percentage: ${context.ratePercentage.toFixed(3)}%`);
-	console.log('=======================================');
+	console.log('================================================');
 	console.log('Last transactions');
-	console.log('=======================================');
+	console.log('================================================');
 	for (let i = 0; i < context.transactions.length; i++) {
 		console.log(context.transactions[i]);
 	}
