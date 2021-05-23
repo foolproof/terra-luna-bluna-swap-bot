@@ -52,8 +52,7 @@ const key = new MnemonicKey({
 const terra = new LCDClient({
 	URL: process.env.LCD_URL,
 	chainID: process.env.CHAIN_ID,
-	gasPrices: { ukrw: 178.05 },
-	gasAdjustment: 1.05,
+	gasPrices: { ukrw: 200 },
 });
 
 const context = new UIContext();
@@ -236,7 +235,7 @@ async function main() {
 		console.error(e.response.data);
 	}
 
-	setTimeout(main, 5000);
+	setTimeout(main, 2000);
 }
 
 function updateUI() {
