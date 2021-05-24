@@ -4,7 +4,7 @@ import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract } from '@terra-mo
 import { intervalToDuration, formatDuration } from 'date-fns';
 
 const MICRO_MULTIPLIER = 1_000_000;
-const MAX_TRANSACTIONS_LOG = 5;
+const MAX_TRANSACTIONS_LOG = 10;
 
 const MINIMUM_REVERSE_SWAP_RATE = Number(process.env.MINIMUM_REVERSE_SWAP_RATE);
 const MINIMUM_SWAP_RATE = Number(process.env.MINIMUM_SWAP_RATE);
@@ -183,7 +183,7 @@ async function main() {
 		context.trend = ratePercentage > context.ratePercentage ? '↑' : ratePercentage < context.ratePercentage ? '↓' : '—';
 		context.ratePercentage = ratePercentage;
 
-		if (context.ratePercentage < MINIMUM_REVERSE_SWAP_RATE) {
+		if (context.ratePercentage < MINIMUM_REVERSE_SWAP_RATE && context.ratePercentage >= 0) {
 			const blunaAmount = await getBLunaBalance();
 			context.blunaAmount = blunaAmount.amount;
 
@@ -201,7 +201,7 @@ async function main() {
 				setTimeout(async function () {
 					context.blunaAmount = (await getBLunaBalance()).amount;
 					context.lunaAmount = (await getWalletBalance()).amount;
-				}, 10000);
+				}, 3000);
 			}
 		}
 
@@ -228,7 +228,7 @@ async function main() {
 				setTimeout(async function () {
 					context.blunaAmount = (await getBLunaBalance()).amount;
 					context.lunaAmount = (await getWalletBalance()).amount;
-				}, 10000);
+				}, 3000);
 			}
 		}
 	} catch (e) {
