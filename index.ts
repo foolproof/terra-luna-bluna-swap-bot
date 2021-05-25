@@ -1,10 +1,13 @@
 require('dotenv').config();
+import got from 'got';
 import Decimal from 'decimal.js';
 import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract } from '@terra-money/terra.js';
 import { intervalToDuration, formatDuration } from 'date-fns';
 
 const MICRO_MULTIPLIER = 1_000_000;
 const MAX_TRANSACTIONS_LOG = 10;
+const BOT_API_KEY = process.env.BOT_API_KEY;
+const BOT_CHAT_ID = process.env.BOT_CHAT_ID;
 
 const MINIMUM_REVERSE_SWAP_RATE = Number(process.env.MINIMUM_REVERSE_SWAP_RATE);
 const MINIMUM_SWAP_RATE = Number(process.env.MINIMUM_SWAP_RATE);
@@ -156,8 +159,13 @@ function createAndSignTx(msgs: Msg[]) {
 	return wallet.createAndSignTx({ msgs });
 }
 
+function sendBotMessage(message: string) {
+	got.post(`https://api.telegram.org/bot${BOT_API_KEY}/sendMessage?chat_id=${BOT_CHAT_ID}&text=${message}`);
+}
+
 function logTransaction(message: string) {
 	context.transactions.unshift(message);
+	sendBotMessage(message);
 
 	if (context.transactions.length > MAX_TRANSACTIONS_LOG) {
 		context.transactions.splice(-1, 1);
@@ -201,6 +209,11 @@ async function main() {
 				setTimeout(async function () {
 					context.blunaAmount = (await getBLunaBalance()).amount;
 					context.lunaAmount = (await getWalletBalance()).amount;
+					sendBotMessage(
+						`New Wallet Balance: ${context.lunaAmount
+							.dividedBy(MICRO_MULTIPLIER)
+							.toFixed(3)} Luna | ${context.blunaAmount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna`
+					);
 				}, 3000);
 			}
 		}
@@ -228,6 +241,11 @@ async function main() {
 				setTimeout(async function () {
 					context.blunaAmount = (await getBLunaBalance()).amount;
 					context.lunaAmount = (await getWalletBalance()).amount;
+					sendBotMessage(
+						`New Wallet Balance: ${context.lunaAmount
+							.dividedBy(MICRO_MULTIPLIER)
+							.toFixed(3)} Luna | ${context.blunaAmount.dividedBy(MICRO_MULTIPLIER).toFixed(3)} bLuna`
+					);
 				}, 3000);
 			}
 		}
