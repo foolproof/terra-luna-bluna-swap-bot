@@ -18,6 +18,7 @@ export class Bot {
 	#config: Record<string, any>;
 	#status: BotStatus = 'RUNNING';
 	#wallet: Wallet;
+	#cache = new Map();
 	#tx = [];
 
 	constructor(config: any) {
@@ -67,6 +68,10 @@ export class Bot {
 		this.#tx = [];
 	}
 
+	clearCache() {
+		this.#cache.clear();
+	}
+
 	async execute() {
 		if (this.#status === 'PAUSE') {
 			return;
@@ -97,6 +102,7 @@ export class Bot {
 				]);
 
 				await this.broadcast();
+				this.#cache.clear();
 			}
 		} else if (reversePercentage < this.#config.rate.reverseSwap) {
 			const bLunaBalance = await this.getbLunaBalance();
@@ -111,26 +117,42 @@ export class Bot {
 				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance));
 
 				await this.broadcast();
+				this.#cache.clear();
 			}
 		}
 	}
 
 	async getLunaBalance(): Promise<Coin> {
+		if (this.#cache.has('luna')) {
+			return this.#cache.get('luna');
+		}
+
 		const balance = await this.#client.bank.balance(this.#wallet.key.accAddress);
 
-		return balance.get('uluna');
+		const luna = balance.get('uluna');
+		this.#cache.set('luna', luna);
+
+		return luna;
 	}
 
 	async getbLunaBalance(): Promise<Coin> {
+		if (this.#cache.has('bluna')) {
+			return this.#cache.get('bluna');
+		}
+
 		const { balance } = await this.#client.wasm.contractQuery<any>(process.env.BLUNA_TOKEN_ADDRESS, {
 			balance: { address: this.#wallet.key.accAddress },
 		});
 
-		return new Coin('ubluna', balance);
+		const bluna = new Coin('ubluna', balance);
+		this.#cache.set('bluna', bluna);
+
+		return bluna;
 	}
 
 	async getSimulationRate(): Promise<number> {
-		const amount = new Decimal(MICRO_MULTIPLIER * 100);
+		const balance = await this.getLunaBalance();
+		const amount = balance?.amount.toString() || (MICRO_MULTIPLIER * 100).toString();
 
 		const rate = await this.#client.wasm.contractQuery<SimulationReturnType>(process.env.PAIR_TOKEN_ADDRESS, {
 			simulation: {
@@ -142,24 +164,24 @@ export class Bot {
 		});
 
 		const returnAmount = new Decimal(rate.return_amount);
-		const bLunaPrice = returnAmount.dividedBy(MICRO_MULTIPLIER);
-		return bLunaPrice.minus(100).toNumber();
+		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
 	async getReverseSimulationRate(): Promise<number> {
-		const amount = new Decimal(MICRO_MULTIPLIER * 100);
+		const balance = await this.getbLunaBalance();
+		const amount = balance?.amount.toString() || (MICRO_MULTIPLIER * 100).toString();
+
 		const rate = await this.#client.wasm.contractQuery<SimulationReturnType>(process.env.PAIR_TOKEN_ADDRESS, {
 			simulation: {
 				offer_asset: {
-					amount: amount,
+					amount,
 					info: { token: { contract_addr: process.env.BLUNA_TOKEN_ADDRESS } },
 				},
 			},
 		});
 
 		const returnAmount = new Decimal(rate.return_amount);
-		const bLunaPrice = returnAmount.dividedBy(MICRO_MULTIPLIER);
-		return bLunaPrice.minus(100).toNumber();
+		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
 	computeIncreaseAllowanceMessage(amount: Coin) {

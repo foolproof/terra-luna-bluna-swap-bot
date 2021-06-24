@@ -48,6 +48,8 @@ if (config.telegram.apiKey) {
 
 	tgBot.command('pause', (ctx) => {
 		bot.pause();
+		bot.clearQueue();
+		bot.clearCache();
 	});
 
 	tgBot.launch();
@@ -58,6 +60,7 @@ async function main() {
 		bot.execute();
 	} catch (e) {
 		console.error(e);
+		bot.clearCache();
 	} finally {
 		bot.clearQueue();
 	}
