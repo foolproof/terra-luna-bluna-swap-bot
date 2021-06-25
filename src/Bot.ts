@@ -35,7 +35,7 @@ export class Bot {
 		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic });
 		this.#wallet = new Wallet(this.#client, key);
 
-		Logger.log(dedent`<b>v0.1.0 - Luna &lt;&gt; bLuna Swap Bot</b>
+		Logger.log(dedent`<b>v0.1.1 - Luna &lt;&gt; bLuna Swap Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -104,7 +104,7 @@ export class Bot {
 				await this.broadcast();
 				this.#cache.clear();
 			}
-		} else if (reversePercentage < this.#config.rate.reverseSwap) {
+		} else if (reversePercentage > this.#config.rate.reverseSwap) {
 			const bLunaBalance = await this.getbLunaBalance();
 
 			if (+bLunaBalance?.amount > 0) {
