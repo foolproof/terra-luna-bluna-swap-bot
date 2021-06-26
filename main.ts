@@ -26,7 +26,7 @@ if (config.telegram.apiKey) {
 	tgBot.command('info', async (ctx) => {
 		const { config, wallet, status } = bot.getContext();
 
-		ctx.replyWithHTML(dedent`<b>v0.1.1 - Luna &lt;&gt; bLuna Swap Bot</b>
+		ctx.replyWithHTML(dedent`<b>v${Bot.version} - Luna &lt;&gt; bLuna Swap Bot</b>
 			Made by Romain Lanz
 			
 			<b>Network:</b> <code>${config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -63,6 +63,7 @@ async function main() {
 		bot.clearCache();
 	} finally {
 		bot.clearQueue();
+		bot.stopExecution();
 	}
 
 	setTimeout(main, config.options.waitFor * 1000);

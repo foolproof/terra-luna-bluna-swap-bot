@@ -5,7 +5,7 @@ import { Logger } from './Logger';
 
 const MICRO_MULTIPLIER = 1_000_000;
 
-type BotStatus = 'RUNNING' | 'PAUSE';
+type BotStatus = 'RUNNING' | 'IDLE' | 'PAUSE';
 
 type SimulationReturnType = {
 	return_amount: string;
@@ -21,6 +21,10 @@ export class Bot {
 	#cache = new Map();
 	#tx = [];
 
+	static get version() {
+		return '0.1.2';
+	}
+
 	constructor(config: any) {
 		this.#config = config;
 
@@ -35,7 +39,7 @@ export class Bot {
 		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic });
 		this.#wallet = new Wallet(this.#client, key);
 
-		Logger.log(dedent`<b>v0.1.1 - Luna &lt;&gt; bLuna Swap Bot</b>
+		Logger.log(dedent`<b>v${Bot.version} - Luna &lt;&gt; bLuna Swap Bot</b>
 				Made by Romain Lanz
 				
 				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
@@ -55,13 +59,17 @@ export class Bot {
 	}
 
 	start() {
-		this.#status = 'RUNNING';
+		this.#status = 'IDLE';
 		Logger.log('Bot started');
 	}
 
 	pause() {
 		this.#status = 'PAUSE';
 		Logger.log('Bot paused');
+	}
+
+	stopExecution() {
+		this.#status = 'IDLE';
 	}
 
 	clearQueue() {
@@ -73,9 +81,11 @@ export class Bot {
 	}
 
 	async execute() {
-		if (this.#status === 'PAUSE') {
+		if (this.#status !== 'IDLE') {
 			return;
 		}
+
+		this.#status = 'RUNNING';
 
 		let [percentage, reversePercentage] = await Promise.all([
 			this.getSimulationRate(),
@@ -120,6 +130,8 @@ export class Bot {
 				this.#cache.clear();
 			}
 		}
+
+		this.#status = 'IDLE';
 	}
 
 	async getLunaBalance(): Promise<Coin> {
