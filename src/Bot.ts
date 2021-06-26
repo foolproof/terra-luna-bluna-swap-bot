@@ -22,7 +22,7 @@ export class Bot {
 	#tx = [];
 
 	static get version() {
-		return '0.1.2';
+		return '0.1.3';
 	}
 
 	constructor(config: any) {
