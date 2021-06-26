@@ -14,7 +14,7 @@ export default {
 
 	options: {
 		// This define the number of SECONDS to wait between each verification.
-		waitFor: 10,
+		waitFor: 2,
 	},
 
 	rate: {
