@@ -22,7 +22,7 @@ export class Bot {
 	#tx = [];
 
 	static get version() {
-		return '0.1.3';
+		return '0.1.4';
 	}
 
 	constructor(config: any) {
@@ -134,8 +134,8 @@ export class Bot {
 		this.#status = 'IDLE';
 	}
 
-	async getLunaBalance(): Promise<Coin> {
-		if (this.#cache.has('luna')) {
+	async getLunaBalance(bypassCache: boolean = false): Promise<Coin> {
+		if (this.#cache.has('luna') && bypassCache == false) {
 			return this.#cache.get('luna');
 		}
 
@@ -147,8 +147,8 @@ export class Bot {
 		return luna;
 	}
 
-	async getbLunaBalance(): Promise<Coin> {
-		if (this.#cache.has('bluna')) {
+	async getbLunaBalance(bypassCache: boolean = false): Promise<Coin> {
+		if (this.#cache.has('bluna') && bypassCache == false) {
 			return this.#cache.get('bluna');
 		}
 
@@ -160,6 +160,19 @@ export class Bot {
 		this.#cache.set('bluna', bluna);
 
 		return bluna;
+	}
+
+	async getKrwBalance(bypassCache: boolean = false): Promise<Coin> {
+		if (this.#cache.has('krw') && bypassCache == false) {
+			return this.#cache.get('krw');
+		}
+
+		const balance = await this.#client.bank.balance(this.#wallet.key.accAddress);
+		
+		const krw = balance.get('ukrw');
+		this.#cache.set('krw', krw);
+			
+		return krw;
 	}
 
 	async getSimulationRate(): Promise<number> {

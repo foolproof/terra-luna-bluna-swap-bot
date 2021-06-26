@@ -14,11 +14,16 @@ if (config.telegram.apiKey) {
 
 	tgBot.command('balance', async (ctx) => {
 		const message = await ctx.replyWithHTML('Loading...');
-		const [luna, bLuna] = await Promise.all([bot.getLunaBalance(), bot.getbLunaBalance()]);
+		const [luna, bLuna, krw] = await Promise.all([
+			bot.getLunaBalance(true),
+			bot.getbLunaBalance(true),
+			bot.getKrwBalance(true)
+		]);
 
 		const msg = dedent`Your balance is
 		- <code>${luna?.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3) || 0} Luna</code>
-		- <code>${bLuna?.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3) || 0} bLuna</code>`;
+		- <code>${bLuna?.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3) || 0} bLuna</code>
+		- <code>${krw?.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3) || 0} KRW</code>`;
 
 		ctx.telegram.editMessageText(message.chat.id, message.message_id, undefined, msg, { parse_mode: 'HTML' });
 	});
