@@ -38,24 +38,24 @@ export class Bot {
 		// Initialization of the user Wallet
 		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic });
 		this.#wallet = new Wallet(this.#client, key);
-
-		Logger.log(dedent`<b>v${Bot.version} - Luna &lt;&gt; bLuna Swap Bot</b>
-				Made by Romain Lanz
-				
-				<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
-				<b>Address:</b>
-				<a href="https://finder.terra.money/${this.#config.chainId}/address/${this.#wallet.key.accAddress}">
-					${this.#wallet.key.accAddress}
-				</a>
-				
-				<u>Configuration:</u>
-					- <b>SWAP:</b> <code>${this.#config.rate.swap}%</code>
-					- <b>REVERSE SWAP:</b> <code>${this.#config.rate.reverseSwap}%</code>
-		`);
 	}
 
-	getContext() {
-		return { config: this.#config, wallet: this.#wallet.key.accAddress, status: this.#status };
+	info() {
+		Logger.log(dedent`<b>v${Bot.version} - Luna &lt;&gt; bLuna Swap Bot</b>
+			Made by Romain Lanz
+			
+			<b>Network:</b> <code>${this.#config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
+			<b>Address:</b>
+			<a href="https://finder.terra.money/${this.#config.chainId}/address/${this.#wallet.key.accAddress}">
+				${this.#wallet.key.accAddress}
+			</a>
+
+			<b>Status:</b> <code>${this.#status}</code>
+			
+			<u>Configuration:</u>
+				- <b>SWAP:</b> <code>${this.#config.rate.swap}%</code>
+				- <b>REVERSE SWAP:</b> <code>${this.#config.rate.reverseSwap}%</code>
+		`);
 	}
 
 	start() {

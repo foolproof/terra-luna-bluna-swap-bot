@@ -28,22 +28,7 @@ if (config.telegram.apiKey) {
 	});
 
 	tgBot.command('info', async (ctx) => {
-		const { config, wallet, status } = bot.getContext();
-
-		ctx.replyWithHTML(dedent`<b>v${Bot.version} - Luna &lt;&gt; bLuna Swap Bot</b>
-			Made by Romain Lanz
-			
-			<b>Network:</b> <code>${config.chainId === 'columbus-4' ? 'Mainnet' : 'Testnet'}</code>
-			<b>Address:</b>
-			<a href="https://finder.terra.money/${config.chainId}/address/${wallet}">
-				${wallet}
-			</a>
-
-			<b>Status:</b> <code>${status}</code>
-			
-			<u>Configuration:</u>
-				- <b>SWAP:</b> <code>${config.rate.swap}%</code>
-				- <b>REVERSE SWAP:</b> <code>${config.rate.reverseSwap}%</code>`);
+		bot.info();
 	});
 
 	tgBot.command('run', (ctx) => {
