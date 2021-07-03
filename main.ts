@@ -47,9 +47,6 @@ if (config.telegram.apiKey) {
 async function main() {
 	try {
 		await bot.execute();
-	} catch (e) {
-		console.error(e);
-		bot.clearCache();
 	} finally {
 		bot.clearQueue();
 		bot.stopExecution();

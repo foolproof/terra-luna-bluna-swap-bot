@@ -103,34 +103,40 @@ export class Bot {
 			const { luna: lunaBalance } = await this.getWalletBalance();
 
 			if (+lunaBalance?.amount > 0) {
-				Logger.log(
-					`Swapping Luna → bLuna [${lunaBalance.amount
-						.dividedBy(MICRO_MULTIPLIER)
-						.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
-				);
-
 				this.toBroadcast([
 					this.computeIncreaseAllowanceMessage(lunaBalance),
 					this.computeLunatobLunaMessage(lunaBalance),
 				]);
 
-				await this.broadcast();
-				this.#cache.clear();
+				try {
+					await this.broadcast();
+
+					Logger.log(
+						`Swapped Luna → bLuna [${lunaBalance.amount
+							.dividedBy(MICRO_MULTIPLIER)
+							.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
+					);
+				} finally {
+					this.#cache.clear();
+				}
 			}
 		} else if (reversePercentage > this.#config.rate.reverseSwap) {
 			const bLunaBalance = await this.getbLunaBalance();
 
 			if (+bLunaBalance?.amount > 0) {
-				Logger.log(
-					`Swapping bLuna → Luna [${bLunaBalance.amount
-						.dividedBy(MICRO_MULTIPLIER)
-						.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
-				);
-
 				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance));
 
-				await this.broadcast();
-				this.#cache.clear();
+				try {
+					await this.broadcast();
+
+					Logger.log(
+						`Swapped bLuna → Luna [${bLunaBalance.amount
+							.dividedBy(MICRO_MULTIPLIER)
+							.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
+					);
+				} finally {
+					this.#cache.clear();
+				}
 			}
 		}
 
@@ -222,7 +228,7 @@ export class Bot {
 			send: {
 				amount: amount.amount,
 				contract: process.env.PAIR_TOKEN_ADDRESS,
-				msg: Buffer.from('{"swap":{"max_spread":`${maxSpread}}`}}').toString('base64'),
+				msg: Buffer.from(`{"swap":{"max_spread":"${maxSpread}}"}}`).toString('base64'),
 			},
 		});
 	}
@@ -239,7 +245,7 @@ export class Bot {
 						info: { native_token: { denom: 'uluna' } },
 						amount: amount.amount,
 					},
-					max_spread: maxSpread,
+					max_spread: String(maxSpread),
 				},
 			},
 			[new Coin('uluna', amount.amount)]
@@ -261,6 +267,7 @@ export class Bot {
 			await this.#client.tx.broadcast(tx);
 		} catch (e) {
 			console.error(`An error occured\n${JSON.stringify(e.response.data)}`);
+			throw e;
 		} finally {
 			this.clearQueue();
 		}
