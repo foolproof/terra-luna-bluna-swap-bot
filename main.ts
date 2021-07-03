@@ -14,11 +14,10 @@ if (config.telegram.apiKey) {
 
 	tgBot.command('balance', async (ctx) => {
 		const message = await ctx.replyWithHTML('Loading...');
-		const [luna, bLuna, krw] = await Promise.all([
-			bot.getLunaBalance(true),
-			bot.getbLunaBalance(true),
-			bot.getKrwBalance(true)
-		]);
+
+		bot.clearCache();
+
+		const [{ luna, krw }, bLuna] = await Promise.all([bot.getWalletBalance(), bot.getbLunaBalance()]);
 
 		const msg = dedent`Your balance is
 		- <code>${luna?.amount.dividedBy(MICRO_MULTIPLIER).toFixed(3) || 0} Luna</code>

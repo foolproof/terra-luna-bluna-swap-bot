@@ -1,6 +1,6 @@
 import dedent from 'dedent-js';
 import Decimal from 'decimal.js';
-import { Coin, LCDClient, MnemonicKey, Msg, MsgExecuteContract, Wallet } from '@terra-money/terra.js';
+import { Coin, Denom, LCDClient, MnemonicKey, Msg, MsgExecuteContract, Wallet } from '@terra-money/terra.js';
 import { Logger } from './Logger';
 
 const MICRO_MULTIPLIER = 1_000_000;
@@ -97,7 +97,7 @@ export class Bot {
 		}
 
 		if (percentage > this.#config.rate.swap) {
-			const lunaBalance = await this.getLunaBalance();
+			const { luna: lunaBalance } = await this.getWalletBalance();
 
 			if (+lunaBalance?.amount > 0) {
 				Logger.log(
@@ -134,21 +134,23 @@ export class Bot {
 		this.#status = 'IDLE';
 	}
 
-	async getLunaBalance(bypassCache: boolean = false): Promise<Coin> {
-		if (this.#cache.has('luna') && bypassCache == false) {
-			return this.#cache.get('luna');
+	async getWalletBalance(): Promise<{ luna: Coin; krw: Coin }> {
+		if (this.#cache.has('wallet')) {
+			return this.#cache.get('wallet');
 		}
 
 		const balance = await this.#client.bank.balance(this.#wallet.key.accAddress);
 
-		const luna = balance.get('uluna');
-		this.#cache.set('luna', luna);
+		const luna = balance.get(Denom.LUNA);
+		const krw = balance.get(Denom.KRW);
 
-		return luna;
+		this.#cache.set('wallet', { luna, krw });
+
+		return { luna, krw };
 	}
 
-	async getbLunaBalance(bypassCache: boolean = false): Promise<Coin> {
-		if (this.#cache.has('bluna') && bypassCache == false) {
+	async getbLunaBalance(): Promise<Coin> {
+		if (this.#cache.has('bluna')) {
 			return this.#cache.get('bluna');
 		}
 
@@ -162,21 +164,8 @@ export class Bot {
 		return bluna;
 	}
 
-	async getKrwBalance(bypassCache: boolean = false): Promise<Coin> {
-		if (this.#cache.has('krw') && bypassCache == false) {
-			return this.#cache.get('krw');
-		}
-
-		const balance = await this.#client.bank.balance(this.#wallet.key.accAddress);
-		
-		const krw = balance.get('ukrw');
-		this.#cache.set('krw', krw);
-			
-		return krw;
-	}
-
 	async getSimulationRate(): Promise<number> {
-		const balance = await this.getLunaBalance();
+		const { luna: balance } = await this.getWalletBalance();
 		const amount = balance?.amount.toString() || (MICRO_MULTIPLIER * 100).toString();
 
 		const rate = await this.#client.wasm.contractQuery<SimulationReturnType>(process.env.PAIR_TOKEN_ADDRESS, {
