@@ -101,7 +101,7 @@ export class Bot {
 
 			if (+lunaBalance?.amount > 0) {
 				Logger.log(
-					`Swapping Luna -> bLuna [${lunaBalance.amount
+					`Swapping Luna → bLuna [${lunaBalance.amount
 						.dividedBy(MICRO_MULTIPLIER)
 						.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
 				);
@@ -119,7 +119,7 @@ export class Bot {
 
 			if (+bLunaBalance?.amount > 0) {
 				Logger.log(
-					`Swapping bLuna -> Luna [${bLunaBalance.amount
+					`Swapping bLuna → Luna [${bLunaBalance.amount
 						.dividedBy(MICRO_MULTIPLIER)
 						.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
 				);
