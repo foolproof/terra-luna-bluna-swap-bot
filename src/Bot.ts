@@ -39,7 +39,7 @@ export class Bot {
 		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic });
 		this.#wallet = new Wallet(this.#client, key);
 
-		bot.info();
+		this.info();
 	}
 
 	info() {
