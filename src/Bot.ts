@@ -55,6 +55,7 @@ export class Bot {
 			<u>Configuration:</u>
 				- <b>SWAP:</b> <code>${this.#config.rate.swap}%</code>
 				- <b>REVERSE SWAP:</b> <code>${this.#config.rate.reverseSwap}%</code>
+				- <b>MAX SPREAD:</b> <code>${this.#config.rate.maxSpread}%</code>
 		`);
 	}
 
