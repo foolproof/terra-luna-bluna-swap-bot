@@ -38,6 +38,8 @@ export class Bot {
 		// Initialization of the user Wallet
 		const key = new MnemonicKey({ mnemonic: this.#config.mnemonic });
 		this.#wallet = new Wallet(this.#client, key);
+
+		bot.info();
 	}
 
 	info() {
