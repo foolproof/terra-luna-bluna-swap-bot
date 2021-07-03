@@ -213,16 +213,20 @@ export class Bot {
 	}
 
 	computebLunaToLunaMessage(amount: Coin) {
+		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+
 		return new MsgExecuteContract(this.#wallet.key.accAddress, process.env.BLUNA_TOKEN_ADDRESS, {
 			send: {
 				amount: amount.amount,
 				contract: process.env.PAIR_TOKEN_ADDRESS,
-				msg: 'eyJzd2FwIjp7fX0=',
+				msg: Buffer.from('{"swap":{"max_spread":`${maxSpread}}`}}').toString('base64'),
 			},
 		});
 	}
 
 	computeLunatobLunaMessage(amount: Coin) {
+		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+
 		return new MsgExecuteContract(
 			this.#wallet.key.accAddress,
 			process.env.PAIR_TOKEN_ADDRESS,
@@ -232,6 +236,7 @@ export class Bot {
 						info: { native_token: { denom: 'uluna' } },
 						amount: amount.amount,
 					},
+					max_spread: maxSpread,
 				},
 			},
 			[new Coin('uluna', amount.amount)]

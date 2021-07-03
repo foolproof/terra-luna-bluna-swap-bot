@@ -23,6 +23,9 @@ export default {
 
 		// This define the minimum rate for the bLuna > Luna swap.
 		reverseSwap: process.env.MINIMUM_REVERSE_SWAP_RATE,
+
+		// This define the maximum spread.
+		maxSpread: process.env.MAX_SPREAD,
 	},
 
 	notification: {
