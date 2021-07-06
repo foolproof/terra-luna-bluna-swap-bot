@@ -83,6 +83,10 @@ export class Bot {
 		this.#cache.clear();
 	}
 
+	getMaxTokenSwap() {
+		return +this.#config.rate.maxPerSwape * MICRO_MULTIPLIER;
+	}
+
 	async execute() {
 		if (this.#status !== 'IDLE') {
 			return;
@@ -95,14 +99,14 @@ export class Bot {
 			this.getReverseSimulationRate(),
 		]);
 
-		if (percentage < 0 || reversePercentage > 0) {
-			return;
-		}
-
 		if (percentage > this.#config.rate.swap) {
-			const { luna: lunaBalance } = await this.getWalletBalance();
+			let { luna: lunaBalance } = await this.getWalletBalance();
 
 			if (+lunaBalance?.amount > 0) {
+				if (this.#config.rate.maxPerSwape != 0 && +lunaBalance.amount > this.getMaxTokenSwap()) {
+					lunaBalance = new Coin(Denom.LUNA, this.getMaxTokenSwap());
+				}
+
 				this.toBroadcast([
 					this.computeIncreaseAllowanceMessage(lunaBalance),
 					this.computeLunatobLunaMessage(lunaBalance),
@@ -121,9 +125,13 @@ export class Bot {
 				}
 			}
 		} else if (reversePercentage > this.#config.rate.reverseSwap) {
-			const bLunaBalance = await this.getbLunaBalance();
+			let bLunaBalance = await this.getbLunaBalance();
 
 			if (+bLunaBalance?.amount > 0) {
+				if (this.#config.rate.maxPerSwape != 0 && +bLunaBalance.amount > this.getMaxTokenSwap()) {
+					bLunaBalance = new Coin('ubluna', this.getMaxTokenSwap());
+				}
+
 				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance));
 
 				try {
@@ -175,7 +183,13 @@ export class Bot {
 
 	async getSimulationRate(): Promise<number> {
 		const { luna: balance } = await this.getWalletBalance();
-		const amount = balance?.amount.toString() || (MICRO_MULTIPLIER * 100).toString();
+		let amount = (MICRO_MULTIPLIER * 100).toString();
+
+		if (balance && +balance?.amount > this.#config.rate.maxPerSwap) {
+			amount = this.getMaxTokenSwap().toString();
+		} else if (balance) {
+			amount = balance?.amount.toString();
+		}
 
 		const rate = await this.#client.wasm.contractQuery<SimulationReturnType>(process.env.PAIR_TOKEN_ADDRESS, {
 			simulation: {
@@ -192,7 +206,13 @@ export class Bot {
 
 	async getReverseSimulationRate(): Promise<number> {
 		const balance = await this.getbLunaBalance();
-		const amount = balance?.amount.toString() || (MICRO_MULTIPLIER * 100).toString();
+		let amount = (MICRO_MULTIPLIER * 100).toString();
+
+		if (balance && +balance?.amount > this.#config.rate.maxPerSwap) {
+			amount = this.getMaxTokenSwap().toString();
+		} else if (balance) {
+			amount = balance?.amount.toString();
+		}
 
 		const rate = await this.#client.wasm.contractQuery<SimulationReturnType>(process.env.PAIR_TOKEN_ADDRESS, {
 			simulation: {

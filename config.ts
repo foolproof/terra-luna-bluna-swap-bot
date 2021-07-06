@@ -26,6 +26,9 @@ export default {
 
 		// This define the maximum spread.
 		maxSpread: process.env.MAX_SPREAD,
+
+		// This define the maximum number of Luna per swap.
+		maxPerSwap: process.env.MAX_PER_SWAP,
 	},
 
 	notification: {
