@@ -47,9 +47,11 @@ if (config.telegram.apiKey) {
 async function main() {
 	try {
 		await bot.execute();
+	} catch (e) {
+		console.error(e);
+		bot.stopExecution();
 	} finally {
 		bot.clearQueue();
-		bot.stopExecution();
 	}
 
 	setTimeout(main, config.options.waitFor * 1000);
