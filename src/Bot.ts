@@ -16,7 +16,7 @@ type SimulationReturnType = {
 export class Bot {
 	#client: LCDClient;
 	#config: Record<string, any>;
-	#status: BotStatus = 'RUNNING';
+	#status: BotStatus = 'IDLE';
 	#wallet: Wallet;
 	#cache = new Map();
 	#tx = [];
@@ -58,6 +58,7 @@ export class Bot {
 				- <b>SWAP:</b> <code>${this.#config.rate.swap}%</code>
 				- <b>REVERSE SWAP:</b> <code>${this.#config.rate.reverseSwap}%</code>
 				- <b>MAX SPREAD:</b> <code>${this.#config.rate.maxSpread}%</code>
+				- <b>MAX TOKEN PER SWAP:</b> <code>${this.#config.rate.maxTokenPerSwap}</code>
 		`);
 	}
 
@@ -84,7 +85,7 @@ export class Bot {
 	}
 
 	getMaxTokenSwap() {
-		return +this.#config.rate.maxPerSwape * MICRO_MULTIPLIER;
+		return +this.#config.rate.maxTokenPerSwap * MICRO_MULTIPLIER;
 	}
 
 	async execute() {
@@ -99,11 +100,11 @@ export class Bot {
 			this.getReverseSimulationRate(),
 		]);
 
-		if (percentage > this.#config.rate.swap) {
+		if (percentage > +this.#config.rate.swap) {
 			let { luna: lunaBalance } = await this.getWalletBalance();
 
 			if (+lunaBalance?.amount > 0) {
-				if (this.#config.rate.maxPerSwape != 0 && +lunaBalance.amount > this.getMaxTokenSwap()) {
+				if (this.#config.rate.maxTokenPerSwap != 0 && +lunaBalance.amount > this.getMaxTokenSwap()) {
 					lunaBalance = new Coin(Denom.LUNA, this.getMaxTokenSwap());
 				}
 
@@ -120,15 +121,17 @@ export class Bot {
 							.dividedBy(MICRO_MULTIPLIER)
 							.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
 					);
+				} catch (e) {
+					console.error(e);
 				} finally {
 					this.#cache.clear();
 				}
 			}
-		} else if (reversePercentage > this.#config.rate.reverseSwap) {
+		} else if (reversePercentage > +this.#config.rate.reverseSwap) {
 			let bLunaBalance = await this.getbLunaBalance();
 
 			if (+bLunaBalance?.amount > 0) {
-				if (this.#config.rate.maxPerSwape != 0 && +bLunaBalance.amount > this.getMaxTokenSwap()) {
+				if (this.#config.rate.maxTokenPerSwap != 0 && +bLunaBalance.amount > this.getMaxTokenSwap()) {
 					bLunaBalance = new Coin('ubluna', this.getMaxTokenSwap());
 				}
 
@@ -185,9 +188,9 @@ export class Bot {
 		const { luna: balance } = await this.getWalletBalance();
 		let amount = (MICRO_MULTIPLIER * 100).toString();
 
-		if (balance && +balance?.amount > this.#config.rate.maxPerSwap) {
+		if (balance && +balance?.amount > +this.#config.rate.maxTokenPerSwap) {
 			amount = this.getMaxTokenSwap().toString();
-		} else if (balance) {
+		} else if (balance && +balance?.amount !== 0) {
 			amount = balance?.amount.toString();
 		}
 
@@ -208,9 +211,9 @@ export class Bot {
 		const balance = await this.getbLunaBalance();
 		let amount = (MICRO_MULTIPLIER * 100).toString();
 
-		if (balance && +balance?.amount > this.#config.rate.maxPerSwap) {
+		if (balance && +balance?.amount > +this.#config.rate.maxTokenPerSwap) {
 			amount = this.getMaxTokenSwap().toString();
-		} else if (balance) {
+		} else if (balance && +balance.amount !== 0) {
 			amount = balance?.amount.toString();
 		}
 
