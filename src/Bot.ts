@@ -251,7 +251,7 @@ export class Bot {
 			send: {
 				amount: amount.amount,
 				contract: process.env.PAIR_TOKEN_ADDRESS,
-				msg: Buffer.from(`{"swap":{"max_spread":"${maxSpread}}"}}`).toString('base64'),
+				msg: Buffer.from(`{"swap":{"max_spread":"${maxSpread}"}}`).toString('base64'),
 			},
 		});
 	}
