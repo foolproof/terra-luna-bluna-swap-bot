@@ -27,7 +27,7 @@ export class Bot {
 	#tx = [];
 
 	static get version() {
-		return '0.2.0';
+		return '0.2.1';
 	}
 
 	constructor(config: any) {
@@ -100,12 +100,12 @@ export class Bot {
 
 		this.#status = 'RUNNING';
 
-		let [simulation, reverseSimulation] = await Promise.all([
+		let [percentage, reversePercentage] = await Promise.all([
 			this.getSimulationRate(),
 			this.getReverseSimulationRate(),
 		]);
 
-		if (simulation.percentage > +this.#config.rate.swap) {
+		if (percentage > +this.#config.rate.swap) {
 			let { luna: lunaBalance } = await this.getWalletBalance();
 
 			if (+lunaBalance?.amount > 0) {
@@ -116,12 +116,12 @@ export class Bot {
 				Logger.log(
 					`Trying Luna → bLuna [${lunaBalance.amount
 						.dividedBy(MICRO_MULTIPLIER)
-						.toFixed(3)} Luna @ ${simulation.percentage.toFixed(3)}%]`
+						.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
 				);
 
 				this.toBroadcast([
 					this.computeIncreaseAllowanceMessage(lunaBalance),
-					this.computeLunatobLunaMessage(lunaBalance, simulation.beliefPrice),
+					this.computeLunatobLunaMessage(lunaBalance, percentage),
 				]);
 
 				try {
@@ -130,7 +130,7 @@ export class Bot {
 					Logger.log(
 						`Swapped Luna → bLuna [${lunaBalance.amount
 							.dividedBy(MICRO_MULTIPLIER)
-							.toFixed(3)} Luna @ ${simulation.percentage.toFixed(3)}%]`
+							.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
 					);
 				} catch (e) {
 					console.error(e);
@@ -138,7 +138,7 @@ export class Bot {
 					this.#cache.clear();
 				}
 			}
-		} else if (reverseSimulation.percentage > +this.#config.rate.reverseSwap) {
+		} else if (reversePercentage > +this.#config.rate.reverseSwap) {
 			let bLunaBalance = await this.getbLunaBalance();
 
 			if (+bLunaBalance?.amount > 0) {
@@ -149,10 +149,10 @@ export class Bot {
 				Logger.log(
 					`Trying bLuna → Luna [${bLunaBalance.amount
 						.dividedBy(MICRO_MULTIPLIER)
-						.toFixed(3)} bLuna @ ${reverseSimulation.percentage.toFixed(3)}%]`
+						.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
 				);
 
-				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance, reverseSimulation.beliefPrice));
+				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance, reversePercentage));
 
 				try {
 					await this.broadcast();
@@ -160,7 +160,7 @@ export class Bot {
 					Logger.log(
 						`Swapped bLuna → Luna [${bLunaBalance.amount
 							.dividedBy(MICRO_MULTIPLIER)
-							.toFixed(3)} bLuna @ ${reverseSimulation.percentage.toFixed(3)}%]`
+							.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
 					);
 				} finally {
 					this.#cache.clear();
@@ -201,7 +201,7 @@ export class Bot {
 		return bluna;
 	}
 
-	async getSimulationRate(): Promise<Simulation> {
+	async getSimulationRate(): Promise<number> {
 		const { luna: balance } = await this.getWalletBalance();
 		let amount = (MICRO_MULTIPLIER * 100).toString();
 
@@ -222,13 +222,10 @@ export class Bot {
 
 		const returnAmount = new Decimal(rate.return_amount);
 
-		return {
-			beliefPrice: returnAmount,
-			percentage: returnAmount.minus(amount).dividedBy(amount).times(100).toNumber(),
-		};
+		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
-	async getReverseSimulationRate(): Promise<Simulation> {
+	async getReverseSimulationRate(): Promise<number> {
 		const balance = await this.getbLunaBalance();
 		let amount = (MICRO_MULTIPLIER * 100).toString();
 
@@ -249,10 +246,7 @@ export class Bot {
 
 		const returnAmount = new Decimal(rate.return_amount);
 
-		return {
-			beliefPrice: returnAmount,
-			percentage: returnAmount.minus(amount).dividedBy(amount).times(100).toNumber(),
-		};
+		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
 	computeIncreaseAllowanceMessage(amount: Coin) {
@@ -269,12 +263,14 @@ export class Bot {
 		);
 	}
 
-	computebLunaToLunaMessage(amount: Coin, beliefPrice: Decimal) {
+	computebLunaToLunaMessage(amount: Coin, beliefPercentage: number) {
 		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+		const beliefPrice = 1 + (beliefPercentage * -1) / 100;
+
 		const message = JSON.stringify({
 			swap: {
-				max_spread: maxSpread,
-				belief_price: beliefPrice.dividedBy(MICRO_MULTIPLIER),
+				max_spread: String(maxSpread),
+				belief_price: String(beliefPrice),
 			},
 		});
 
@@ -287,8 +283,9 @@ export class Bot {
 		});
 	}
 
-	computeLunatobLunaMessage(amount: Coin, beliefPrice: Decimal) {
+	computeLunatobLunaMessage(amount: Coin, beliefPercentage: number) {
 		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+		const beliefPrice = 1 + (beliefPercentage * -1) / 100;
 
 		return new MsgExecuteContract(
 			this.#wallet.key.accAddress,
@@ -300,7 +297,7 @@ export class Bot {
 						amount: amount.amount,
 					},
 					max_spread: String(maxSpread),
-					belief_price: beliefPrice.dividedBy(MICRO_MULTIPLIER),
+					belief_price: String(beliefPrice),
 				},
 			},
 			[new Coin('uluna', amount.amount)]
