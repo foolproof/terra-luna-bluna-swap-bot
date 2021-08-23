@@ -13,6 +13,11 @@ type SimulationReturnType = {
 	commission_amount: string;
 };
 
+type Simulation = {
+	beliefPrice: Decimal;
+	percentage: number;
+};
+
 export class Bot {
 	#client: LCDClient;
 	#config: Record<string, any>;
@@ -22,7 +27,7 @@ export class Bot {
 	#tx = [];
 
 	static get version() {
-		return '0.1.5';
+		return '0.2.1';
 	}
 
 	constructor(config: any) {
@@ -108,9 +113,15 @@ export class Bot {
 					lunaBalance = new Coin(Denom.LUNA, this.getMaxTokenSwap());
 				}
 
+				Logger.log(
+					`Trying Luna → bLuna [${lunaBalance.amount
+						.dividedBy(MICRO_MULTIPLIER)
+						.toFixed(3)} Luna @ ${percentage.toFixed(3)}%]`
+				);
+
 				this.toBroadcast([
 					this.computeIncreaseAllowanceMessage(lunaBalance),
-					this.computeLunatobLunaMessage(lunaBalance),
+					this.computeLunatobLunaMessage(lunaBalance, percentage),
 				]);
 
 				try {
@@ -135,7 +146,13 @@ export class Bot {
 					bLunaBalance = new Coin('ubluna', this.getMaxTokenSwap());
 				}
 
-				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance));
+				Logger.log(
+					`Trying bLuna → Luna [${bLunaBalance.amount
+						.dividedBy(MICRO_MULTIPLIER)
+						.toFixed(3)} bLuna @ ${reversePercentage.toFixed(3)}%]`
+				);
+
+				this.toBroadcast(this.computebLunaToLunaMessage(bLunaBalance, reversePercentage));
 
 				try {
 					await this.broadcast();
@@ -204,6 +221,7 @@ export class Bot {
 		});
 
 		const returnAmount = new Decimal(rate.return_amount);
+
 		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
@@ -227,6 +245,7 @@ export class Bot {
 		});
 
 		const returnAmount = new Decimal(rate.return_amount);
+
 		return returnAmount.minus(amount).dividedBy(amount).times(100).toNumber();
 	}
 
@@ -244,20 +263,29 @@ export class Bot {
 		);
 	}
 
-	computebLunaToLunaMessage(amount: Coin) {
+	computebLunaToLunaMessage(amount: Coin, beliefPercentage: number) {
 		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+		const beliefPrice = 1 + (beliefPercentage * -1) / 100;
+
+		const message = JSON.stringify({
+			swap: {
+				max_spread: String(maxSpread),
+				belief_price: String(beliefPrice),
+			},
+		});
 
 		return new MsgExecuteContract(this.#wallet.key.accAddress, process.env.BLUNA_TOKEN_ADDRESS, {
 			send: {
 				amount: amount.amount,
 				contract: process.env.PAIR_TOKEN_ADDRESS,
-				msg: Buffer.from(`{"swap":{"max_spread":"${maxSpread}"}}`).toString('base64'),
+				msg: Buffer.from(message).toString('base64'),
 			},
 		});
 	}
 
-	computeLunatobLunaMessage(amount: Coin) {
+	computeLunatobLunaMessage(amount: Coin, beliefPercentage: number) {
 		const maxSpread = this.#config.rate.maxSpread / 100 || '0.01';
+		const beliefPrice = 1 + (beliefPercentage * -1) / 100;
 
 		return new MsgExecuteContract(
 			this.#wallet.key.accAddress,
@@ -269,6 +297,7 @@ export class Bot {
 						amount: amount.amount,
 					},
 					max_spread: String(maxSpread),
+					belief_price: String(beliefPrice),
 				},
 			},
 			[new Coin('uluna', amount.amount)]
