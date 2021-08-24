@@ -37,7 +37,8 @@ export class Bot {
 		this.#client = new LCDClient({
 			URL: this.#config.lcdUrl,
 			chainID: this.#config.chainId,
-			gasPrices: { ukrw: 200 },
+			gasPrices: '443.515327ukrw',
+			gasAdjustment: 1.6,
 		});
 
 		// Initialization of the user Wallet
